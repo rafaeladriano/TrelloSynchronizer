@@ -1,1 +1,2 @@
-# TrelloSynchronizer
+# Trello Synchronizer
+
