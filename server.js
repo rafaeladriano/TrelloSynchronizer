@@ -125,7 +125,7 @@ var addTrelloCard = function(card) {
 			if (error) {
 				logger.error(error);
 			} else {
-				logger.info('Cartão adicionado: '+ card.name);
+				logger.info('Cartão adicionado: ' + card.name);
 			}
 		});
 	});
@@ -144,20 +144,27 @@ app.use(function(error, req, res, next) {
 });
 
 app.get('/', function(req, res) {
+
 	if (oauth_token != null) {
+
 		res.writeHead(301, {
 	      'Location':  host + "/index.html"
 	    });
+
 	} else {
+
 		res.writeHead(301, {
 	      'Location':  host + "/login"
 	    });		
 	}
+
     return res.end();
 });
 
 app.get('/login', function(req, res) {
+
 	return oauth.getOAuthRequestToken((function(_this) {
+
 	  return function(error, token, tokenSecret, results) {
 	  	
 	  	if (error) {
@@ -167,12 +174,14 @@ app.get('/login', function(req, res) {
 
 	    oauth_secrets[token] = tokenSecret;
 	    res.writeHead(302, {
-	      'Location': authorizeURL + "?oauth_token=" + token + "&name=" + appName + "&scope=read,write"
+	      'Location': authorizeURL + "?oauth_token=" + token + "&name=" + appName + "&expiration=never&scope=read,write"
 	    });
 
 	    return res.end();
 	  };
+
 	})(this));
+
 });
 
 app.get('/afterLogin', function(req, res) {
@@ -322,9 +331,15 @@ app.get('/syncronizeCards', function(req, res) {
 
 		for (var j = 0; j < trelloCards.length; j++) {
 			var card = trelloCards[j];
-			if (card.name && card.name.indexOf(task.id) > -1) {
-				cardAdded = true;
-				break;
+			if (card.name) {
+				var cardNumbers = card.name.match(/\d+/);
+				if (cardNumbers.length > 0) {
+					var cardId = cardNumbers[0];
+					if (cardId == task.id) {
+						cardAdded = true;
+						break;
+					}	
+				}
 			}
 		}
 
@@ -352,5 +367,5 @@ app.get('/syncronizeCards', function(req, res) {
 
 app.listen(port);
 
-logger.info("Server running at " + domain + ":" + port + "; hit " + domain + ":" + port + "/login\n");
-logger.info('Configurações carregadas com sucesso do arquivo "configuration.properties"\n');
+logger.info("Server running at " + domain + ":" + port + "; hit " + domain + ":" + port + "/login");
+logger.info('Configurações carregadas com sucesso do arquivo "configuration.properties"');

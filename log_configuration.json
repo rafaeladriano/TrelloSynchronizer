@@ -6,7 +6,7 @@
       "maxLogSize": 20480
     }, {
       "type": "console",
-	  "pattern" : "-dd/MM/yyyy"
+	  "pattern" : "dd/MM/yyyy"
     }
   ]
 }
