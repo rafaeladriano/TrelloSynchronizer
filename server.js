@@ -8,6 +8,7 @@ var serveStatic = require('serve-static');
 var sql = require('mssql');
 var fileSystem = require('fs');
 var propertiesReader = require('properties-reader');
+var log4js = require('log4js');
 
 // ### Propriedades do Servidor ###
 
@@ -16,6 +17,8 @@ var port = null;
 var host = null;
 var hostTrelloAPI = "https://api.trello.com/1/";
 var app = express();
+var properties = null;
+var logger = log4js.getLogger();
 
 // ### Propriedades para Autenticação ###
 
@@ -55,15 +58,18 @@ var trelloCards = [];
 
 // ### Lê arquivos de configurações ###
 
-fileSystem.readFile('./tasks.sql', 'utf8', function (err, data) {
-  if (err) {
-    return console.log(err);
-  }
-  console.log('Query das tarefas carregado com sucesso do arquivo "tasks.sql"');
-  queryTasks = data;
+log4js.configure('log_configuration.json', { reloadSecs: 300 });
+
+fileSystem.readFile('./tasks.sql', 'utf8', function (error, data) {
+	if (error) {
+		logger.error(error);
+	} else {
+		logger.info('Query das tarefas carregado com sucesso do arquivo "tasks.sql"');
+		queryTasks = data;	
+	}
 });
 
-var properties = propertiesReader('./configuration.properties');
+properties = propertiesReader('./configuration.properties');
 
 databaseConfig.user = properties.get('com.synchronizer.database.user');
 databaseConfig.password = properties.get('com.synchronizer.database.password');
@@ -109,11 +115,17 @@ var toCard = function(task) {
 
 var addTrelloCard = function(card) {
 	oauth.getOAuthAccessToken(oauth_token, oauth_secrets[oauth_token], oauth_verifier, function(error, accessToken, accessTokenSecret, results) {
-		oauth.post(hostTrelloAPI + "cards", accessToken, accessTokenSecret, card, function(err, data) {
-			if (err) {
-				console.log(err);
+
+		if (error) {
+			logger.error(error);
+			return;
+		}
+
+		oauth.post(hostTrelloAPI + "cards", accessToken, accessTokenSecret, card, function(error, data) {
+			if (error) {
+				logger.error(error);
 			} else {
-				console.log('Cartão adicionado: ' + card.name);
+				logger.info('Cartão adicionado: ' + card.name);
 			}
 		});
 	});
@@ -121,33 +133,55 @@ var addTrelloCard = function(card) {
 
 var isArray = function(objectJson) {
     return Object.prototype.toString.call(objectJson) === '[object Array]';
-}
+};
 
 // ### Tratadores das requisições ###
 
+app.use(function(error, req, res, next) {
+	if (error) {
+		logger.error(error);
+	}
+});
+
 app.get('/', function(req, res) {
+
 	if (oauth_token != null) {
+
 		res.writeHead(301, {
 	      'Location':  host + "/index.html"
 	    });
+
 	} else {
+
 		res.writeHead(301, {
 	      'Location':  host + "/login"
 	    });		
 	}
+
     return res.end();
 });
 
 app.get('/login', function(req, res) {
+
 	return oauth.getOAuthRequestToken((function(_this) {
-	  return function(error, token, tokenSecret, results) {  
+
+	  return function(error, token, tokenSecret, results) {
+	  	
+	  	if (error) {
+			logger.error(error);
+			return res.end();
+		}
+
 	    oauth_secrets[token] = tokenSecret;
 	    res.writeHead(302, {
-	      'Location': authorizeURL + "?oauth_token=" + token + "&name=" + appName + "&scope=read,write"
+	      'Location': authorizeURL + "?oauth_token=" + token + "&name=" + appName + "&expiration=never&scope=read,write"
 	    });
+
 	    return res.end();
 	  };
+
 	})(this));
+
 });
 
 app.get('/afterLogin', function(req, res) {
@@ -168,9 +202,21 @@ app.get('/getBoards', function(req, res) {
 	var tokenSecret = oauth_secrets[oauth_token];
 
 	return oauth.getOAuthAccessToken(oauth_token, tokenSecret, oauth_verifier, function(error, accessToken, accessTokenSecret, results) {
-	  return oauth.getProtectedResource(hostTrelloAPI + "members/me/boards", "GET", accessToken, accessTokenSecret, function(error, data, response) {
-	    return res.end(data);
-	  });
+
+		if (error) {
+			logger.error(error);
+			return res.end();
+		}
+
+		return oauth.getProtectedResource(hostTrelloAPI + "members/me/boards", "GET", accessToken, accessTokenSecret, function(error, data, response) {
+
+			if (error) {
+				logger.error(error);
+				return res.end();
+			}
+
+	    	return res.end(data);
+	  	});
 	});
 
 });
@@ -182,9 +228,21 @@ app.get('/getLists', function(req, res) {
 	boardSync.boardId = query.boardId;
 
 	return oauth.getOAuthAccessToken(oauth_token, tokenSecret, oauth_verifier, function(error, accessToken, accessTokenSecret, results) {
-	  return oauth.getProtectedResource(hostTrelloAPI + "boards/" + boardSync.boardId + "/lists", "GET", accessToken, accessTokenSecret, function(error, data, response) {
-	    return res.end(data);
-	  });
+
+		if (error) {
+			logger.error(error);
+			return res.end();
+		}
+
+		return oauth.getProtectedResource(hostTrelloAPI + "boards/" + boardSync.boardId + "/lists", "GET", accessToken, accessTokenSecret, function(error, data, response) {
+
+			if (error) {
+				logger.error(error);
+				return res.end();
+			}
+
+			return res.end(data);
+		});
 	});
 
 });
@@ -199,21 +257,29 @@ app.get('/setEntryList', function(req, res) {
 
 app.get('/loadTasks', function(req, res) {
 
-	var connection = new sql.Connection(databaseConfig, function(err) {
+	var connection = new sql.Connection(databaseConfig, function(error) {
 		
+		if (error) {
+			logger.error(error);
+			res.status(500).send(error);
+			return;
+		}
+
 		databaseTasks = [];
 
 		var request = new sql.Request(connection); 
 
-		request.query(queryTasks, function(err, recordset) {
+		request.query(queryTasks, function(error, recordset) {
 
-			if (err !== undefined) {
+			if (error !== undefined) {
 
-				res.status(500).send(err);
+				logger.error(error);
+
+				res.status(500).send(error);
 
 			} else {
 
-				console.log(recordset.length +  ' tarefas carregadas');
+				logger.info(recordset.length +  ' tarefas carregadas');
 
 				for (var i = 0; i < recordset.length; i++) {
 					databaseTasks.push(toTask(recordset[i]));
@@ -232,11 +298,22 @@ app.get('/loadTrelloCards', function(req, res) {
 	var tokenSecret = oauth_secrets[oauth_token];
 
 	return oauth.getOAuthAccessToken(oauth_token, tokenSecret, oauth_verifier, function(error, accessToken, accessTokenSecret, results) {
+
+		if (error) {
+			logger.error(error);
+			return res.end();
+		}
+
 		return oauth.getProtectedResource(hostTrelloAPI + "boards/" + boardSync.boardId + "/cards?fields=name", "GET", accessToken, accessTokenSecret, function(error, data, response) {
+
+			if (error) {
+				logger.error(error);
+				return res.end();
+			}
 
 			trelloCards = JSON.parse(data);	
 
-			console.log(trelloCards.length +  ' cartões do Trello carregados');
+			logger.info(trelloCards.length +  ' cartões do Trello carregados');
 
 			return res.end();
 	  });
@@ -254,9 +331,15 @@ app.get('/syncronizeCards', function(req, res) {
 
 		for (var j = 0; j < trelloCards.length; j++) {
 			var card = trelloCards[j];
-			if (card.name && card.name.indexOf(task.id) > -1) {
-				cardAdded = true;
-				break;
+			if (card.name) {
+				var cardNumbers = card.name.match(/\d+/);
+				if (cardNumbers.length > 0) {
+					var cardId = cardNumbers[0];
+					if (cardId == task.id) {
+						cardAdded = true;
+						break;
+					}	
+				}
 			}
 		}
 
@@ -266,7 +349,7 @@ app.get('/syncronizeCards', function(req, res) {
 
 	}
 
-	console.log(cardsNotAdded.length +  ' cartões que serão adicionados no Trello');
+	logger.info(cardsNotAdded.length +  ' cartões que serão adicionados no Trello');
 
 	for (var i = 0; i < cardsNotAdded.length; i++) {
 		var card = cardsNotAdded[i];
@@ -284,5 +367,5 @@ app.get('/syncronizeCards', function(req, res) {
 
 app.listen(port);
 
-console.log("Server running at " + domain + ":" + port + "; hit " + domain + ":" + port + "/login\n");
-console.log('Configurações carregadas com sucesso do arquivo "configuration.properties"\n');
+logger.info("Server running at " + domain + ":" + port + "; hit " + domain + ":" + port + "/login");
+logger.info('Configurações carregadas com sucesso do arquivo "configuration.properties"');
