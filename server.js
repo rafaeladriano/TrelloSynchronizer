@@ -333,6 +333,13 @@ app.get('/syncronizeCards', function(req, res) {
 			var card = trelloCards[j];
 			if (card.name) {
 				var cardNumbers = card.name.match(/\d+/);
+
+				if (!isArray(cardNumbers)) {
+					var cardNumber = cardNumbers;
+					cardNumbers = [];
+					cardNumbers.push(cardNumber);
+				}
+
 				if (cardNumbers.length > 0) {
 					var cardId = cardNumbers[0];
 					if (cardId == task.id) {
