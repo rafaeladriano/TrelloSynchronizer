@@ -5,6 +5,7 @@
 
     app.controller('TrelloSynchronizerController', ['$http', '$timeout', function ($http, $timeout) {
         var dashboard = this;
+        var currentTimeout;
 
         dashboard.trelloBoards = [];
         dashboard.trelloBoardLists = [];
@@ -64,6 +65,12 @@
                 console.log('Esperando usuário escolher uma lista de entrada...');
             }
             
+            if (currentTimeout) {
+                $timeout.cancel(currentTimeout);
+            }
+
+            currentTimeout = $timeout(getAjax, 300 * 1000);
+
         };
 
         dashboard.getLists = function(board) {
@@ -92,7 +99,6 @@
         };
 
         getAjax();
-        $timeout(getAjax, 300 * 1000);
 
     }]);
 }());
