@@ -34,7 +34,7 @@
 
                         console.log('Carga das tarefas bem sucedida!');
 
-                         $http.get('/loadTrelloCards')
+                        $http.get('/loadTrelloCards')
                             .success(function (data) {
                                 
                                 console.log('Carga dos cartões do Trello bem sucedida!');
@@ -48,18 +48,16 @@
                                     })
                                     .error(function (data) {
                                         console.log(data);
-                                });
+                                    });
 
                             })
                             .error(function (data) {
                                 console.log(data);
-                        });
-
-
+                            });
                     })
                     .error(function (data) {
                         console.log(data);
-                });
+                    });
 
             } else {
                 console.log('Esperando usuário escolher uma lista de entrada...');
