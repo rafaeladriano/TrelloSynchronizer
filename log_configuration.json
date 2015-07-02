@@ -3,7 +3,7 @@
     {
       "type": "file",
       "filename": "log.log",
-      "maxLogSize": 20480
+      "maxLogSize": 2048000
     }, {
       "type": "console",
 	  "pattern" : "dd/MM/yyyy"
