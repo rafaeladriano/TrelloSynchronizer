@@ -113,6 +113,13 @@ var toCard = function(task) {
 	};
 };
 
+var toCardForClose = function(card) {
+	return {
+		id : card.id,
+		title : card.name
+	};
+};
+
 var addTrelloCard = function(card) {
 	oauth.getOAuthAccessToken(oauth_token, oauth_secrets[oauth_token], oauth_verifier, function(error, accessToken, accessTokenSecret, results) {
 
@@ -126,6 +133,35 @@ var addTrelloCard = function(card) {
 				logger.error(error);
 			} else {
 				logger.info('Cartão adicionado: ' + card.name);
+
+/*				if (hasClient) {
+					oauth.put(hostTrelloAPI + "cards", accessToken, accessTokenSecret, card, function(error, data) {
+						if (error) {
+							logger.error(error);
+						} else {
+							logger.info('Adicionado sticker no cartão(cliente): ' + card.name);
+						}
+					}
+				}
+*/
+			}
+		});
+	});
+};
+
+var closeTrelloCard = function(card) {
+	oauth.getOAuthAccessToken(oauth_token, oauth_secrets[oauth_token], oauth_verifier, function(error, accessToken, accessTokenSecret, results) {
+
+		if (error) {
+			logger.error(error);
+			return;
+		}
+
+		oauth.put(hostTrelloAPI + "cards/" + card.id + "/closed", accessToken, accessTokenSecret, { value : true }, function(error, data) {
+			if (error) {
+				logger.error(error);
+			} else {
+				logger.info('Cartão fechado: ' + card.title);
 			}
 		});
 	});
@@ -322,7 +358,10 @@ app.get('/loadTrelloCards', function(req, res) {
 });
 
 app.get('/syncronizeCards', function(req, res) {
-	var cardsNotAdded = [];
+	var cardsNotAdded = []; // Cartões que serão adicionados
+	var cardsClosed = []; // Cartões que serão fechados
+
+	// Adicionando cartões
 
 	for (var i = 0; i < databaseTasks.length; i++) {
 
@@ -345,7 +384,7 @@ app.get('/syncronizeCards', function(req, res) {
 					if (cardId == task.id) {
 						cardAdded = true;
 						break;
-					}	
+					}
 				}
 			}
 		}
@@ -361,6 +400,54 @@ app.get('/syncronizeCards', function(req, res) {
 	for (var i = 0; i < cardsNotAdded.length; i++) {
 		var card = cardsNotAdded[i];
 		addTrelloCard(card);
+	}
+
+	// Fechando cartões
+
+	for (var i = 0; i < trelloCards.length; i++) {
+
+		var card = trelloCards[i];
+
+		if (card.name) {
+			var cardNumbers = card.name.match(/\d+/);
+
+			if (!isArray(cardNumbers)) {
+				var cardNumber = cardNumbers;
+				cardNumbers = [];
+				cardNumbers.push(cardNumber);
+			}
+
+			if (cardNumbers.length > 0) {
+				var cardId = cardNumbers[0];
+
+				if (cardId != null) {
+
+					var taskClosed = false;
+
+					for (var j = 0; j < databaseTasks.length; j++) {
+						var task = databaseTasks[j];
+						
+						if (cardId == task.id) {
+							taskClosed = true;
+							break;
+						}
+					}
+
+					if (taskClosed === false) {
+						cardsClosed.push(toCardForClose(card));
+					}
+
+				}
+				
+			}
+		}
+
+	}
+
+	logger.info(cardsClosed.length +  ' cartões que serão fechados no Trello');
+	for (var i = 0; i < cardsClosed.length; i++) {
+		var card = cardsClosed[i];
+		closeTrelloCard(card);
 	}
 
 	if (cardsNotAdded.length == 0) {
