@@ -1,0 +1,27 @@
+{
+	
+	"boardName" : "Manutenção SeniorTools/Workflow/Fast",
+
+	"locationsToLists" : [
+							["Manutenção", "Pré-Análise"], 
+							["Especificação e Análise", "Especificação e Análise"], 
+							["Análise de Sistema", "Especificação e Análise"], 
+							["Especificação de Testes", "Especificação de Testes"],
+							["Projeto", "Projeto"],
+							["Revisão de Código", "Revisão de Código"],
+							["Montagem de Produto", "Montagem de Produto"],
+							["Documentação", "Documentação"]
+						],
+
+	"usersToMembers" : [
+						["Rafael.Adriano", "rafaeladriano"],
+						["Acacio Antonio Andruczewics", "acacio_andrucz"],
+						["Ricardor.Reiter", "ricardofilipereiter"],
+						["Vitor Santos", "vitorenio"],
+						["Welton.Sabino", "weltonsabino"],
+						["Fernando.Huscher", "fernandohenriquehushcer"],
+						["Elizandro Schramm", "elizandros"],
+						["Fredy Schlag", "fredyschlag"]
+					]
+
+}
