@@ -54,6 +54,7 @@ var logger = null;
 
 process.on('uncaughtException', function(err) {
   console.log('Caught exception: ' + err);
+  console.trace();
 });
 
 logger = log4js.getLogger();
@@ -197,18 +198,19 @@ function synchronize() {
 		// Se estiver logado
 		if (board.oauthInfo.token && board.oauthInfo.verifier) {
 		
-			// Carrega o quadro do Trello, caso ainda não tenha carregado
-			loadTrelloBoard(board, function() {
+			if (board.boardId == null) {
+				// Carrega o quadro do Trello, caso ainda não tenha carregado
+				loadTrelloBoard(board, function() {
 
-				// Carrega as listas do Trello, caso ainda não tenha carregado
-				loadTrelloLists(board, function() {
+					// Carrega as listas do Trello, caso ainda não tenha carregado
+					loadTrelloLists(board, function() {
 
-					// Carrega os usuários do Trello, caso ainda não tenha carregado
-					loadTrelloMembers(board, callbackSync);		
+						// Carrega os usuários do Trello, caso ainda não tenha carregado
+						loadTrelloMembers(board, callbackSync);		
+					});	
 				});	
-			});
-
-			if (board.membersTo != null) {
+			} else {
+				// Quando estiver tudo carregado, chama direto
 				callbackSync();
 			}
 
@@ -258,10 +260,6 @@ function loadBoardsConfiguration() {
 
 function loadTrelloBoard(board, callback) {
 
-	if (board.boardId != null) {
-		return;
-	}
-
 	logger.info('[{0}] Loading Trello board'.format(board.content.boardName));
 	
 	oauth.getOAuthAccessToken(board.oauthInfo.token, board.oauthInfo.secret, board.oauthInfo.verifier, function(error, accessToken, accessTokenSecret, results) {
@@ -301,12 +299,9 @@ function loadTrelloBoard(board, callback) {
 
 function loadTrelloLists(board, callback) {
 
-	if (board.listsTo == null) {
-		return;
-	}
+	board.listsTo = {};
 
 	logger.info('[{0}] Loading Trello lists'.format(board.content.boardName));
-	logger.info('[{0}] Loading Trello lists'.format(board.boardId));
 
 	oauth.getOAuthAccessToken(board.oauthInfo.token, board.oauthInfo.secret, board.oauthInfo.verifier, function(error, accessToken, accessTokenSecret, results) {
 
@@ -323,8 +318,6 @@ function loadTrelloLists(board, callback) {
 			}
 
 			var trelloLists = JSON.parse(data);
-
-			logger.log(trelloLists);
 
 			var indexLocationName = 0;
 			var indexListName = 1;
@@ -343,11 +336,11 @@ function loadTrelloLists(board, callback) {
 
 				if (!board.listsTo[locationName]) {
 					logger.warn('[{1}] List {0} not found'.format(listName, board.content.boardName));
-				} else {
-					callback();
 				}
 
 			}
+
+			callback();
 
 			return;
 		});
@@ -357,9 +350,7 @@ function loadTrelloLists(board, callback) {
 
 function loadTrelloMembers(board, callback) {
 
-	if (board.membersTo == null) {
-		return;
-	}
+	board.membersTo = {};
 
 	logger.info('[{0}] Loading Trello members'.format(board.content.boardName));
 
@@ -396,11 +387,11 @@ function loadTrelloMembers(board, callback) {
 
 				if (!board.membersTo[userUsername]) {
 					logger.warn('[{1}] Trello member {0} not found'.format(memberUsername, board.content.boardName));
-				} else {
-					callback();
 				}
 
 			}
+
+			callback();
 
 			return;
 		});
@@ -483,8 +474,8 @@ function synchronizeBoard(board) {
 		var task = board.dataSync.tasks[i];
 		var cardAdded = false;
 
-		for (var j = 0; j < trelloCards.length; j++) {
-			var card = trelloCards[j];
+		for (var j = 0; j < board.dataSync.cards.length; j++) {
+			var card = board.dataSync.cards[j];
 			if (card.name) {
 				var cardNumbers = card.name.match(/\d+/);
 
@@ -539,8 +530,8 @@ function synchronizeBoard(board) {
 
 					var taskClosed = false;
 
-					for (var j = 0; j < databaseTasks.length; j++) {
-						var task = databaseTasks[j];
+					for (var j = 0; j < board.dataSync.tasks.length; j++) {
+						var task = board.dataSync.tasks[j];
 						
 						if (cardId == task.id) {
 							taskClosed = true;
@@ -576,8 +567,8 @@ function addBoard(fileName, content) {
 			verifier : null,
 			secret : null
 		},
-		listsTo : {},
-		membersTo : {},
+		listsTo : null,
+		membersTo : null,
 		content : content,
 		dataSync : {
 			tasks : null,
@@ -674,7 +665,7 @@ function isArray(objectJson) {
 // ### Repete a busca dos dados no banco a cada 5 minutos ###
 setInterval(function() {
 	synchronize();
-}, 1 * 30 * 1000);
+}, 5 * 30 * 1000);
 
 
 fileSystem.exists(__dirname + '/boards', function(exists) {
