@@ -467,7 +467,7 @@ function loadTrelloCards(board, callback) {
 			return res.end();
 		}
 
-		oauth.getProtectedResource(hostTrelloAPI + "/boards/" + board.boardId + "/cards?fields=name", "GET", accessToken, accessTokenSecret, function(error, data, response) {
+		oauth.getProtectedResource(hostTrelloAPI + "/boards/" + board.boardId + "/cards?fields=name,idList,idMembers", "GET", accessToken, accessTokenSecret, function(error, data, response) {
 
 			if (error) {
 				logger.error(error);
@@ -490,6 +490,8 @@ function synchronizeBoard(board) {
 
 	var cardsNotAdded = []; // Cartões que serão adicionados
 	var cardsClosed = []; // Cartões que serão fechados
+	var cardsMoved = []; // Cartões que serão movidos de lista
+	var cardsChangedMember = []; // Cartões que serão alterado o responsável
 
 	// Adicionando cartões
 
@@ -520,7 +522,7 @@ function synchronizeBoard(board) {
 		}
 
 		if (cardAdded === false) {
-			cardsNotAdded.push(toCard(board.listsTo['Manutenção'], task)); // TODO fazer o de para da listas
+			cardsNotAdded.push(toCardToAdd(board, task));
 		}
 
 	}
@@ -564,7 +566,7 @@ function synchronizeBoard(board) {
 					}
 
 					if (taskClosed === false) {
-						cardsClosed.push(toCardForClose(card));
+						cardsClosed.push(toCardToUpdate(card));
 					}
 
 				}
@@ -580,6 +582,71 @@ function synchronizeBoard(board) {
 		closeTrelloCard(board, card);
 	}
 
+	// Atualizando cartões
+
+	for (var i = 0; i < board.dataSync.tasks.length; i++) {
+
+		var task = board.dataSync.tasks[i];
+		var cardUpdatedMember = false;
+		var cardUpdatedList = false;
+
+		for (var j = 0; j < board.dataSync.cards.length; j++) {
+			var card = board.dataSync.cards[j];
+			if (card.name) {
+				var cardNumbers = card.name.match(/\d+/);
+
+				if (!isArray(cardNumbers)) {
+					var cardNumber = cardNumbers;
+					cardNumbers = [];
+					cardNumbers.push(cardNumber);
+				}
+
+				if (cardNumbers.length > 0) {
+					var cardId = cardNumbers[0];
+					if (cardId == task.id) {
+						
+						// Só move se a localização estiver mapeada
+						var listId = board.listsTo[task.location];
+						if (listId) {
+							if (card.idList != listId) {
+								cardsMoved.push(toCardToUpdate(card, listId));
+							}	
+						}
+
+						var memberId = board.membersTo[task.responsible];
+
+						// Senão tiver o membro mapeado e o cartão tiver, remove o membro
+						if (!memberId) {
+							if (card.idMembers.length > 0) {
+								cardsChangedMember.push(toCardToUpdate(card, null));
+							}
+						} else {
+							if (card.idMembers.indexOf(memberId) < 0) {
+								cardsChangedMember.push(toCardToUpdate(card, memberId));
+							}	
+						}
+
+						break;
+					}
+				}
+			}
+		}
+
+	}
+
+	logger.info('[{0}] {1} cards to move'.format(board.content.boardName, cardsMoved.length));
+
+	for (var i = 0; i < cardsMoved.length; i++) {
+		var card = cardsMoved[i];
+		moveTrelloCard(board, card);
+	}
+
+	logger.info('[{0}] {1} cards to change member'.format(board.content.boardName, cardsChangedMember.length));
+
+	for (var i = 0; i < cardsChangedMember.length; i++) {
+		var card = cardsChangedMember[i];
+		changeMemberTrelloCard(board, card);
+	}
 }
 
 function addBoard(fileName, content) {
@@ -610,28 +677,37 @@ function toTask(record) {
 		title : record.title,
 		priority : record.priority,
 		hasClient : record.hasClient,
+		location : record.location,
+		responsible : record.responsible,
 		due : record.due
 	};
 }
 
-function toCard(task) {
+function toCardToAdd(board, task) {
 
 	var labelsAux = [];
 	labelsAux.push(labelsPriority[task.priority]);
 
+	var membersAux = [];
+	if (task.responsible) {
+		membersAux.push(board.membersTo[task.responsible]);	
+	}
+
 	return {
 		name : task.id + ' - ' + task.title,
 		due : task.due,
-		labels :  labelsAux,
-		idList : boardSync.listId,
+		labels : labelsAux,
+		idList : board.listsTo[task.location],
+		idMembers : membersAux,
 		urlSource : null
 	};
 }
 
-function toCardForClose(card) {
+function toCardToUpdate(card, value) {
 	return {
 		id : card.id,
-		title : card.name
+		title : card.name,
+		value : value
 	};
 }
 
@@ -682,6 +758,42 @@ function closeTrelloCard(board, card) {
 	});
 }
 
+function moveTrelloCard(board, card) {
+	oauth.getOAuthAccessToken(board.oauthInfo.token, board.oauthInfo.secret, board.oauthInfo.verifier, function(error, accessToken, accessTokenSecret, results) {
+
+		if (error) {
+			logger.error(error);
+			return;
+		}
+
+		oauth.put(hostTrelloAPI + "/cards/" + card.id + "/idList", accessToken, accessTokenSecret, { value : card.value }, function(error, data) {
+			if (error) {
+				logger.error(error);
+			} else {
+				logger.info('[{0}] Moved card: {1}'.format(board.content.boardName, card.title));
+			}
+		});
+	});
+}
+
+function changeMemberTrelloCard(board, card) {
+	oauth.getOAuthAccessToken(board.oauthInfo.token, board.oauthInfo.secret, board.oauthInfo.verifier, function(error, accessToken, accessTokenSecret, results) {
+
+		if (error) {
+			logger.error(error);
+			return;
+		}
+
+		oauth.put(hostTrelloAPI + "/cards/" + card.id + "/idMembers", accessToken, accessTokenSecret, { value : card.value }, function(error, data) {
+			if (error) {
+				logger.error(error);
+			} else {
+				logger.info('[{0}] Changed card: {1}'.format(board.content.boardName, card.title));
+			}
+		});
+	});
+}
+
 function isArray(objectJson) {
     return Object.prototype.toString.call(objectJson) === '[object Array]';
 }
@@ -704,5 +816,6 @@ fileSystem.exists(__dirname + '/boards', function(exists) {
 
 	app.listen(port);
 
-	logger.info("Server running at " + host + "; hit " + host + "/login?filename=<filename in boards folder>");
+	logger.info("Server running at " + host);
+	logger.info("Hit " + host + "/login?filename=<filename in boards folder>");
 });
