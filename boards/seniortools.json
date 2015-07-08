@@ -3,7 +3,7 @@
 	"boardName" : "Manutenção SeniorTools/Workflow/Fast",
 
 	"locationsToLists" : [
-							["Manutenção", "Pré-Análise"], 
+							["Manutenção", "Pré-Analise"], 
 							["Especificação e Análise", "Especificação e Análise"], 
 							["Análise de Sistema", "Especificação e Análise"], 
 							["Especificação de Testes", "Especificação de Testes"],

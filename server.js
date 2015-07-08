@@ -1,3 +1,14 @@
+String.prototype.format = function() {
+    var args = arguments;
+    return this.replace(/{(.+?)}/g, function(match, number) { 
+        return args[0].toString()==='[object Object]' ? args[0][number] : args[number];
+    });
+};
+
+String.prototype.trim = function() {
+	return this.replace(/^\s+|\s+$/g, '');
+};
+
 // ### Bibliotecas Usadas ###
 
 var http = require('http');
@@ -16,6 +27,7 @@ var iconv = require('iconv-lite');
 var domain = null;
 var port = null;
 var host = null;
+var intervalTime = null;
 
 var app = express();
 
@@ -52,26 +64,27 @@ var logger = null;
 
 // Inicializações necessárias
 
-process.on('uncaughtException', function(err) {
-  console.log('Caught exception: ' + err);
-  console.trace();
-});
-
 logger = log4js.getLogger();
 log4js.configure('log_configuration.json', { reloadSecs: 300 });
 
+process.on('uncaughtException', function(err) {
+	logger.error(err.stack);
+});
+
 properties = propertiesReader(__dirname + '/configuration.properties');
 
-databaseConfig.user = properties.get('com.synchronizer.database.user');
-databaseConfig.password = properties.get('com.synchronizer.database.password');
-databaseConfig.server = properties.get('com.synchronizer.database.host');
-databaseConfig.database = properties.get('com.synchronizer.database.databaseName');
+databaseConfig.user =  getPropertyValue('com.synchronizer.database.user');
+databaseConfig.password = getPropertyValue('com.synchronizer.database.password');
+databaseConfig.server = getPropertyValue('com.synchronizer.database.host');
+databaseConfig.database = getPropertyValue('com.synchronizer.database.databaseName');
 
-key = properties.get('com.synchronizer.trello.key');
-secret = properties.get('com.synchronizer.trello.secret');
+key = getPropertyValue('com.synchronizer.trello.key');
+secret = getPropertyValue('com.synchronizer.trello.secret');
 
-domain = properties.get('com.synchronizer.server.domain');
-port = properties.get('com.synchronizer.server.port');
+domain = getPropertyValue('com.synchronizer.server.domain', 'localhost');
+port = getPropertyValue('com.synchronizer.server.port', 8090);
+intervalTime = getPropertyValue('com.synchronizer.server.interval', 5);
+
 host = "http://" + domain + ":" + port;
 
 oauth = new OAuth(requestURL, accessURL, key, secret, "1.0", host + "/afterLogin", "HMAC-SHA1");
@@ -166,34 +179,45 @@ app.get('/getBoards', function(req, res) {
 
 // ### Funções ###
 
-String.prototype.format = function () {
-    var args = arguments;
-    return this.replace(/{(.+?)}/g, function(match, number) { 
-        return args[0].toString()==='[object Object]' ? args[0][number] : args[number];
-    });
-};
+function getPropertyValue(key, defaultValue) {
+	var value = properties.get(key);
+
+	if (isNull(value) && !defaultValue) {
+		logger.warn('Property {0} is required'.format(key));
+	}
+
+	if (isNull(value) && defaultValue) {
+		value = defaultValue;
+	}
+
+	return value;
+}
+
+function isNull(value) {
+	return !value || value == null || (typeof value == 'string' && value.trim() == '');
+}
 
 function synchronize() {
 
 	logger.info('Synchronizing boards');
 
-	var callbackSync = function() {
-
-		// Carrega as tarefas da query
-		loadTasks(board, function() {
-			
-			// Carrega os cartões do quadro
-			loadTrelloCards(board, function() {
-
-				// Sincroniza cartões
-				synchronizeBoard(board);
-			});
-		});
-	};
-
 	for (var filename in boards) {
 
 		var board = boards[filename];
+
+		var callbackSync = function() {
+
+			// Carrega as tarefas da query
+			loadTasks(board, function() {
+				
+				// Carrega os cartões do quadro
+				loadTrelloCards(board, function() {
+
+					// Sincroniza cartões
+					synchronizeBoard(board);
+				});
+			});
+		};
 
 		// Se estiver logado
 		if (board.oauthInfo.token && board.oauthInfo.verifier) {
@@ -665,7 +689,7 @@ function isArray(objectJson) {
 // ### Repete a busca dos dados no banco a cada 5 minutos ###
 setInterval(function() {
 	synchronize();
-}, 5 * 30 * 1000);
+}, intervalTime * 60 * 1000);
 
 
 fileSystem.exists(__dirname + '/boards', function(exists) {
