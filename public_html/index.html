@@ -12,32 +12,12 @@
 
   <div class="container">
 
-  <h3 class="control-label">Escolha o quadro do Trello que você deseja sincronizar com o 0800?</h3>
+  <h3 class="control-label">Quadros do Trello</h3>
 
   <table class="table table-striped">
     <tbody>
       <tr ng-repeat="board in controller.trelloBoards">
-        <td title="Quadros"> <input type="button" value="{{board.name}}" style="width: 100%" ng-click="controller.getLists(board)" class="btn btn-success"/></td>
-      </tr>
-    </tbody>
-  </table>
-
-  <h3>Escolha o ponto de entrada (Lista) para as novas tarefas?</h3>
-
-  <table class="table table-striped">
-    <tbody>
-      <tr ng-repeat="list in controller.trelloBoardLists">
-        <td title="Listas"> <input type="button" value="{{list.name}}" style="width: 100%" ng-click="controller.setEntryList(list)" class="btn btn-success"/></td>
-      </tr>
-    </tbody>
-  </table>
-
-  <h3 class="control-label">Tarefas recentemente sincronizadas no Trello!</h3>
-
-  <table class="table table-hover table-condensed">
-    <tbody>
-      <tr ng-repeat="card in controller.addedCards">
-        <td>{{card.name}}</td>
+        <td title="Quadros" style="width: 100%">{{board.name}}</td>
       </tr>
     </tbody>
   </table>

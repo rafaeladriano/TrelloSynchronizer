@@ -1,0 +1,17 @@
+{
+	
+	"boardName" : "Board Name",
+
+	"locationsToLists" : [
+							["Query Location 1", "List Name 1"], 
+							["Query Location 2", "List Name 2"], 
+							["Query Location 3", "List Name 3"]
+						],
+
+	"usersToMembers" : [
+						["Query Responsible 1", "Trello User Name 1"],
+						["Query Responsible 2", "Trello User Name 2"],
+						["Query Responsible 3", "Trello User Name 3"]
+					]
+
+}
