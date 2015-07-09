@@ -1,27 +1,17 @@
 {
 	
-	"boardName" : "Manutenção SeniorTools/Workflow/Fast",
+	"boardName" : "Board Name",
 
 	"locationsToLists" : [
-							["Manutenção", "Pré-Analise"], 
-							["Especificação e Análise", "Especificação e Análise"], 
-							["Análise de Sistema", "Especificação e Análise"], 
-							["Especificação de Testes", "Especificação de Testes"],
-							["Projeto", "Projeto"],
-							["Revisão de Código", "Revisão de Código"],
-							["Montagem de Produto", "Montagem de Produto"],
-							["Documentação", "Documentação"]
+							["Query Location 1", "List Name 1"], 
+							["Query Location 2", "List Name 2"], 
+							["Query Location 3", "List Name 3"]
 						],
 
 	"usersToMembers" : [
-						["Rafael.Adriano", "rafaeladriano"],
-						["Acacio Antonio Andruczewics", "acacio_andrucz"],
-						["Ricardor.Reiter", "ricardofilipereiter"],
-						["Vitor Santos", "vitorenio"],
-						["Welton.Sabino", "weltonsabino"],
-						["Fernando.Huscher", "fernandohenriquehushcer"],
-						["Elizandro Schramm", "elizandros"],
-						["Fredy Schlag", "fredyschlag"]
+						["Query Responsible 1", "Trello User Name 1"],
+						["Query Responsible 2", "Trello User Name 2"],
+						["Query Responsible 3", "Trello User Name 3"]
 					]
 
 }
