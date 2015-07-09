@@ -7,3 +7,4 @@
 * npm install properties-reader
 * npm install serve-static
 * npm install log4js
+* npm install iconv-lite
