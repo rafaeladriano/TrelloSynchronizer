@@ -17,7 +17,8 @@
   <table class="table table-striped">
     <tbody>
       <tr ng-repeat="board in controller.trelloBoards">
-        <td title="Quadros" style="width: 100%">{{board.name}}</td>
+        <td title="Quadros" style="width: 75%">{{board.name}}</td>
+        <td title="Autenticação" style="width: 25%"><a href="/login?filename={{board.filename}}">Start Synchronize</a></td>
       </tr>
     </tbody>
   </table>
